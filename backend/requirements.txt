@@ -1,0 +1,27 @@
+# API framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.0
+python-multipart==0.0.17
+
+# Configuration and data layer
+pydantic-settings==2.6.1
+SQLAlchemy==2.0.36
+alembic==1.14.0
+python-jose[cryptography]==3.3.0
+bcrypt==4.2.1
+
+# Image processing
+numpy==1.26.4
+opencv-python==4.10.0.84
+Pillow==10.4.0
+
+# OCR (optional at runtime; requires system Tesseract binary)
+pytesseract==0.3.13
+
+# Testing
+pytest==8.3.3
+
+# Optional Real-ESRGAN stack (install/use when needed)
+# realesrgan==0.3.0
+# basicsr>=1.4.2
+# torch>=2.2.0

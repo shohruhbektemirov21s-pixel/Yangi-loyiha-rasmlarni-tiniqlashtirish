@@ -1,0 +1,36 @@
+# Node / Next.js
+node_modules/
+.next/
+out/
+frontend/.next/
+frontend/node_modules/
+frontend/.turbo/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+backend/.venv/
+
+# Env files
+.env
+.env.*
+!.env.example
+frontend/.env.local
+backend/.env
+
+# Build artifacts
+coverage/
+*.log
+.DS_Store
+
+# Database and generated assets
+backend/imageclear.db
+backend/storage/uploads/*
+backend/storage/outputs/*
+!backend/storage/uploads/.gitkeep
+!backend/storage/outputs/.gitkeep
