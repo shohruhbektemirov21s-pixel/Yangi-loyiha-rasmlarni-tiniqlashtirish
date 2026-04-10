@@ -141,13 +141,119 @@ export function extractApiErrorMessage(payload: unknown): string | null {
 }
 
 /**
- * Katta fayl yuklash: Next.js rewrite orqali emas, to'g'ridan-to'g'ri FastAPI (localhost:8000).
- * Boshqa muhit: .env da NEXT_PUBLIC_LARGE_UPLOAD_API_BASE_URL
+ * Katta multipart: to'g'ridan FastAPI (odatda :8000).
+ * Agar env berilmasa, brauzer hostname'i ishlatiladi — localhost vs 127.0.0.1 CORS mosligi uchun.
  */
+export function resolveLargeUploadApiBase(): string {
+  const env = process.env.NEXT_PUBLIC_LARGE_UPLOAD_API_BASE_URL?.trim();
+  if (env) {
+    return env.replace(/\/+$/, "");
+  }
+  if (typeof window !== "undefined" && window.location?.hostname) {
+    return `${window.location.protocol}//${window.location.hostname}:8000/api/v1`;
+  }
+  return "http://127.0.0.1:8000/api/v1";
+}
+
 export function buildLargeUploadApiUrl(path: string): string {
-  const raw =
-    process.env.NEXT_PUBLIC_LARGE_UPLOAD_API_BASE_URL?.trim() || "http://127.0.0.1:8000/api/v1";
-  const base = raw.replace(/\/+$/, "");
+  const base = resolveLargeUploadApiBase();
   const normalized = path.replace(/^\/+/, "");
   return `${base}/${normalized}`;
+}
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+export type XhrJsonResult = { status: number; body: unknown };
+
+/**
+ * Katta fayl: yuklash progress va cheksiz kutish (brauzer default).
+ * Katta video: XMLHttpRequest + upload progress; uzoq yuklashda fetch xatosi kamayishi mumkin.
+ */
+export function xhrPostFormDataWithProgress(
+  url: string,
+  formData: FormData,
+  authHeaders: HeadersInit,
+  onProgress?: (percent: number | null) => void
+): Promise<XhrJsonResult> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    const h = authHeaders as Record<string, string>;
+    if (h.Authorization) {
+      xhr.setRequestHeader("Authorization", h.Authorization);
+    }
+    xhr.upload.onprogress = (ev) => {
+      if (ev.lengthComputable) {
+        onProgress?.(Math.min(100, Math.round((100 * ev.loaded) / ev.total)));
+      } else {
+        onProgress?.(null);
+      }
+    };
+    xhr.onload = () => {
+      const text = xhr.responseText;
+      let body: unknown = null;
+      if (text) {
+        try {
+          body = JSON.parse(text) as unknown;
+        } catch {
+          body = text;
+        }
+      }
+      resolve({ status: xhr.status, body });
+    };
+    xhr.onerror = () => reject(new Error("NETWORK"));
+    xhr.ontimeout = () => reject(new Error("TIMEOUT"));
+    xhr.timeout = 0;
+    xhr.send(formData);
+  });
+}
+
+export async function pollCompressJobUntilDone(
+  jobId: string,
+  accessToken: string | null,
+  options?: { intervalMs?: number; maxAttempts?: number; isCancelled?: () => boolean }
+): Promise<Record<string, unknown>> {
+  const intervalMs = options?.intervalMs ?? 2000;
+  const maxAttempts = options?.maxAttempts ?? 3600;
+  const isCancelled = options?.isCancelled;
+
+  for (let i = 0; i < maxAttempts; i++) {
+    if (isCancelled?.()) {
+      throw new Error("CANCELLED");
+    }
+    const r = await fetch(buildLargeUploadApiUrl(`compress/jobs/${jobId}`), {
+      headers: bearerAuthHeaders(accessToken)
+    });
+    const body = (await parseJsonSafely(r)) as Record<string, unknown> | string | null;
+    if (r.status === 401) {
+      throw new Error("AUTH_401");
+    }
+    if (!r.ok) {
+      throw new Error(extractApiErrorMessage(body) || `HTTP ${r.status}`);
+    }
+    const payload = body && typeof body === "object" ? (body as Record<string, unknown>).data : null;
+    const state = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
+    if (!state) {
+      await sleep(intervalMs);
+      continue;
+    }
+    const st = String(state.status || "");
+    if (st === "done" && state.data && typeof state.data === "object") {
+      return state.data as Record<string, unknown>;
+    }
+    if (st === "failed") {
+      const err = typeof state.error === "string" ? state.error : "Compress failed";
+      throw new Error(err);
+    }
+    await sleep(intervalMs);
+  }
+  throw new Error("POLL_TIMEOUT");
+}
+
+/** Bearer token for multipart uploads that hit FastAPI directly (not via Next rewrites). */
+export function bearerAuthHeaders(accessToken: string | null | undefined): HeadersInit {
+  if (!accessToken?.trim()) {
+    return {};
+  }
+  return { Authorization: `Bearer ${accessToken.trim()}` };
 }

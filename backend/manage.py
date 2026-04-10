@@ -37,7 +37,22 @@ def main():
         print("⚡ Django uslubida FastAPI serverini ishga tushirmoqdamiz (manage.py runserver)...")
         # Start uvicorn server with hot reload
         try:
-            subprocess.run([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"], check=True)
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "uvicorn",
+                    "app.main:app",
+                    "--host",
+                    "0.0.0.0",
+                    "--port",
+                    "8000",
+                    "--reload",
+                    "--timeout-keep-alive",
+                    "600",
+                ],
+                check=True,
+            )
         except KeyboardInterrupt:
             print("\nServer to'xtatildi.")
     else:

@@ -1,14 +1,17 @@
 "use client";
 
 import React, { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Container } from "@/components/layout/Container";
 import { Button } from "@/components/ui/Button";
 import {
+  bearerAuthHeaders,
   buildLargeUploadApiUrl,
   extractApiErrorMessage,
   parseJsonSafely,
   resolveBackendPublicUrl
 } from "@/lib/api/client";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useTranslation } from "@/hooks/useTranslation";
 import { RevealOnScroll } from "@/components/animations/RevealOnScroll";
 
@@ -73,6 +76,8 @@ function isEnhanceVideoFile(f: File): boolean {
 
 export default function VideoEnhancePage() {
   const { t } = useTranslation();
+  const { token } = useAuth();
+  const pathname = usePathname();
   const [file, setFile] = useState<File | null>(null);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [result, setResult] = useState<EnhanceResult | null>(null);
@@ -122,9 +127,14 @@ export default function VideoEnhancePage() {
     try {
       const response = await fetch(buildLargeUploadApiUrl(path), {
         method: "POST",
+        headers: bearerAuthHeaders(token),
         body: formData
       });
       const resData = (await parseJsonSafely(response)) as Record<string, unknown> | string | null;
+      if (response.status === 401) {
+        window.location.assign(`/login?next=${encodeURIComponent(pathname || "/video-enhance")}`);
+        return;
+      }
       if (!response.ok) {
         alert(extractApiErrorMessage(resData) || t.vidErrServer);
         return;

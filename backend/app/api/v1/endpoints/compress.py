@@ -2,19 +2,35 @@ import os
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
-from app.services.ffmpeg_media import compress_video_to_mp4
+from app.core.dependencies import get_current_user
+from app.models.user import User
+from app.services.compress_jobs import job_create, job_get, start_video_compress_job
 
 router = APIRouter()
 
 _READ_CHUNK = 32 * 1024 * 1024  # 32 MB
 
 
+@router.get("/jobs/{job_id}")
+async def compress_job_status(
+    job_id: str,
+    _user: User = Depends(get_current_user),
+):
+    state = job_get(job_id)
+    if not state:
+        raise HTTPException(status_code=404, detail="Vazifa topilmadi. / Job not found.")
+    return JSONResponse(content={"success": True, "data": state})
+
+
 @router.post("")
-async def compress_media(file: UploadFile = File(...)):
+async def compress_media(
+    file: UploadFile = File(...),
+    _user: User = Depends(get_current_user),
+):
     settings = get_settings()
     ext = file.filename.split(".")[-1].lower() if "." in (file.filename or "") else "bin"
     is_video = ext in ["mp4", "mov", "avi", "mkv", "webm"]
@@ -66,10 +82,25 @@ async def compress_media(file: UploadFile = File(...)):
     original_size = os.path.getsize(input_path)
 
     if is_video:
-        result_path = compress_video_to_mp4(input_path, output_path)
-        if result_path.resolve() == output_path.resolve() and output_path.is_file() and input_path.exists():
-            input_path.unlink(missing_ok=True)
-    elif is_image:
+        jid = job_create()
+        start_video_compress_job(
+            jid,
+            input_path=input_path,
+            output_path=output_path,
+            storage_root=settings.storage_root,
+            storage_url_prefix=settings.storage_url_prefix,
+            original_size=original_size,
+        )
+        return JSONResponse(
+            status_code=202,
+            content={
+                "success": True,
+                "message": "Video qabul qilindi; siqish fon rejimida davom etmoqda.",
+                "data": {"job_id": jid, "status": "queued"},
+            },
+        )
+
+    if is_image:
         from PIL import Image
 
         try:

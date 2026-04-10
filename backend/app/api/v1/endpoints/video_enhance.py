@@ -1,10 +1,12 @@
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
+from app.core.dependencies import get_current_user
+from app.models.user import User
 from app.services.ffmpeg_media import enhance_video_to_mp4
 
 router = APIRouter()
@@ -13,7 +15,10 @@ _READ_CHUNK = 32 * 1024 * 1024
 
 
 @router.post("")
-async def enhance_video(file: UploadFile = File(...)):
+async def enhance_video(
+    file: UploadFile = File(...),
+    _user: User = Depends(get_current_user),
+):
     """
     Katta va xira videolarni tiniqlashtirish (FFmpeg).
     4K+: yengil unsharp; kichikroq: qo'shimcha hqdn3d.

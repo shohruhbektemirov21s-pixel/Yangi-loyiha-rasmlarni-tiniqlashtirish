@@ -120,7 +120,10 @@ function LoginPageInner() {
 
         <p className="mt-8 text-center text-sm text-slate-400 relative z-10">
           {t.noAcc}{" "}
-          <Link href="/signup" className="text-cyan-400 hover:text-cyan-300 font-semibold underline underline-offset-2">
+          <Link
+            href={`/signup?next=${encodeURIComponent(nextPath)}`}
+            className="text-cyan-400 hover:text-cyan-300 font-semibold underline underline-offset-2"
+          >
             {t.goReg}
           </Link>
         </p>

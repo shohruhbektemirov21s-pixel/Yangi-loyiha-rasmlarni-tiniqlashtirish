@@ -1,4 +1,4 @@
-"""Public image enhancement (no auth) — same pipeline as authenticated uploads."""
+"""Image enhancement for authenticated users (same pipeline as job uploads)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,8 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
-from app.core.dependencies import get_processing_service
+from app.core.dependencies import get_current_user, get_processing_service
+from app.models.user import User
 from app.services.processing_service import ProcessingRequest, ProcessingService
 
 router = APIRouter()
@@ -34,9 +35,10 @@ _IMAGE_EXT = frozenset(
 
 
 @router.post("")
-async def enhance_image_public(
+async def enhance_image_authenticated(
     file: UploadFile = File(...),
     processing_service: ProcessingService = Depends(get_processing_service),
+    _user: User = Depends(get_current_user),
 ):
     settings = get_settings()
     raw_name = file.filename or "upload"
