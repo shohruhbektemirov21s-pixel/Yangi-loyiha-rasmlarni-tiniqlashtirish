@@ -98,6 +98,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function bootstrap() {
       const stored = readStoredSession();
       if (!stored) {
+        // Sessiya yo'q, lekin `imageclear_auth` cookie qolgan bo'lsa — middleware kirgizadi,
+        // lekin API uchun token yo'q (401). Cookie ni tozalash.
+        clearStoredSession();
         if (isMounted) {
           setIsLoading(false);
         }

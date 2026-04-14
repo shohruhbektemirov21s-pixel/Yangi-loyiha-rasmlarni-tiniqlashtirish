@@ -1,15 +1,21 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from app.core.dependencies import get_current_admin_user
 from app.db.session import get_db
-from app.models.user import User
 from app.models.image_job import ImageJob
+from app.models.user import User
 from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
+
 @router.get("/stats")
-def get_admin_stats(db: Session = Depends(get_db)):
+def get_admin_stats(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin_user),
+):
     total_users = db.query(func.count(User.id)).scalar() or 0
     total_jobs = db.query(func.count(ImageJob.id)).scalar() or 0
     

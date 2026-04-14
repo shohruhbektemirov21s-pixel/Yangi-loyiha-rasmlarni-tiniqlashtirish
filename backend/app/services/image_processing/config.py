@@ -24,7 +24,7 @@ class DenoiseConfig:
     photo_strength: int = 8
     screenshot_strength: int = 3
     document_strength: int = 2
-    text_heavy_strength: int = 4
+    text_heavy_strength: int = 2
     color_strength: int = 8
     template_window_size: int = 7
     search_window_size: int = 21
@@ -36,11 +36,11 @@ class SharpenConfig:
     sigma_photo: float = 1.1
     sigma_screenshot: float = 0.8
     sigma_document: float = 0.75
-    sigma_text_heavy: float = 0.78
+    sigma_text_heavy: float = 0.72
     amount_photo: float = 1.3
     amount_screenshot: float = 1.65
-    amount_document: float = 1.55
-    amount_text_heavy: float = 1.7
+    amount_document: float = 1.64
+    amount_text_heavy: float = 1.82
     threshold: int = 2
 
 
@@ -73,14 +73,20 @@ class ReadabilityConfig:
     enabled: bool = True
     edge_boost_photo: float = 0.06
     edge_boost_screenshot: float = 0.22
-    edge_boost_document: float = 0.16
-    edge_boost_text_heavy: float = 0.2
+    edge_boost_document: float = 0.2
+    edge_boost_text_heavy: float = 0.26
 
 
 @dataclass(slots=True)
 class UpscaleConfig:
-    enabled: bool = False
-    min_short_side: int = 900
+    """Kichik yoki pikselli rasmlarni kattalashtirish — yozuvlarni yaqinlashtirganda o'qish osonlashadi."""
+
+    enabled: bool = True
+    min_short_side: int = 1080
+    post_sharpen_enabled: bool = True
+    post_sharpen_sigma: float = 0.48
+    post_sharpen_amount: float = 0.68
+    post_sharpen_threshold: int = 1
 
 
 @dataclass(slots=True)

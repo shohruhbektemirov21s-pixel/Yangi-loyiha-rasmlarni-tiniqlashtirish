@@ -26,7 +26,10 @@ export function middleware(request: NextRequest) {
   if (!hasAuthCookie) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
-    loginUrl.searchParams.set("next", `${pathname}${search}`);
+    const returnTo = `${pathname}${search}`;
+    loginUrl.searchParams.set("next", returnTo);
+    loginUrl.searchParams.set("callbackUrl", returnTo);
+    loginUrl.searchParams.set("from", returnTo);
     return NextResponse.redirect(loginUrl);
   }
 

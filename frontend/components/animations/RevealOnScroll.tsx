@@ -1,43 +1,33 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+
+import type { ReactNode } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/cn";
 
-export function RevealOnScroll({ 
-  children, 
-  delay = 0, 
-  className 
-}: { 
-  children: React.ReactNode; 
-  delay?: number; 
-  className?: string 
+export function RevealOnScroll({
+  children,
+  delay = 0,
+  className
+}: {
+  children: ReactNode;
+  delay?: number;
+  className?: string;
 }) {
-  const [isVisible, setIsVisible] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setTimeout(() => setIsVisible(true), delay);
-        observer.disconnect();
-      }
-    }, { threshold: 0.1 });
-    
-    if (ref.current) {
-      observer.observe(ref.current);
-    }
-    return () => observer.disconnect();
-  }, [delay]);
+  const reduceMotion = useReducedMotion();
 
   return (
-    <div
-      ref={ref}
-      className={cn(
-        "transition-all duration-1000 ease-out transform",
-        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-16",
-        className
-      )}
+    <motion.div
+      className={cn(className)}
+      initial={reduceMotion ? false : { opacity: 0, y: 36 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.15, margin: "0px 0px -8% 0px" }}
+      transition={
+        reduceMotion
+          ? { duration: 0 }
+          : { duration: 0.75, delay: delay / 1000, ease: [0.22, 1, 0.36, 1] }
+      }
     >
       {children}
-    </div>
+    </motion.div>
   );
 }

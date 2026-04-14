@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import { ApiRequestError } from "@/lib/api/client";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { EnhanceImageResult, enhanceImageRequest } from "@/lib/api/imageEnhance";
 
 type EnhanceState = {
@@ -13,6 +14,7 @@ type EnhanceState = {
 };
 
 export function useEnhanceImage() {
+  const { token } = useAuth();
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const [state, setState] = useState<EnhanceState>({
@@ -35,7 +37,7 @@ export function useEnhanceImage() {
     setState((prev) => ({ ...prev, isProcessing: true, error: null }));
 
     try {
-      const result = await enhanceImageRequest(file, abortController.signal);
+      const result = await enhanceImageRequest(file, abortController.signal, token);
       setState({ isProcessing: false, error: null, result, sourceFileSignature });
       return result;
     } catch (error) {
@@ -60,7 +62,7 @@ export function useEnhanceImage() {
         abortControllerRef.current = null;
       }
     }
-  }, []);
+  }, [token]);
 
   const reset = useCallback(() => {
     if (abortControllerRef.current) {

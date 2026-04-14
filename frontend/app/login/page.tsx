@@ -1,21 +1,23 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, Suspense, useEffect, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/toast/ToastProvider";
 import { useTranslation } from "@/hooks/useTranslation";
+import { finalizePostAuthRedirect, resolvePostAuthPath } from "@/lib/navigation/postAuthRedirect";
 
 function LoginPageInner() {
   const { t } = useTranslation();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { login, isAuthenticated, isLoading } = useAuth();
   const { success, error: errorToast } = useToast();
+  const reduceMotion = useReducedMotion();
 
-  const nextPath = searchParams.get("next")?.startsWith("/") ? searchParams.get("next")! : "/dashboard";
+  const nextPath = useMemo(() => resolvePostAuthPath(searchParams), [searchParams]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,9 +27,9 @@ function LoginPageInner() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.replace(nextPath);
+      finalizePostAuthRedirect(nextPath);
     }
-  }, [isAuthenticated, isLoading, nextPath, router]);
+  }, [isAuthenticated, isLoading, nextPath]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -47,7 +49,7 @@ function LoginPageInner() {
     try {
       await login({ email: normEmail, password });
       success("Xush kelibsiz", "Muvaffaqiyatli kirdingiz.");
-      router.replace(nextPath);
+      finalizePostAuthRedirect(nextPath);
     } catch (authError) {
       let message = authError instanceof Error ? authError.message : "Tizimga kirishda xatolik.";
       if (message.includes("Invalid email or password")) {
@@ -60,15 +62,29 @@ function LoginPageInner() {
     }
   };
 
+  const fade = reduceMotion ? { duration: 0 } : { duration: 0.45, ease: [0.22, 1, 0.36, 1] as const };
+  const rise = reduceMotion ? { duration: 0 } : { duration: 0.5, delay: 0.06, ease: [0.22, 1, 0.36, 1] as const };
+
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col justify-center items-center py-14 text-white relative">
-      <div className="absolute top-6 left-6 flex space-x-4">
+    <motion.main
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={fade}
+      className="relative flex min-h-screen flex-col items-center justify-center bg-slate-950 py-14 text-white"
+      style={{ backgroundColor: "#020617" }}
+    >
+      <div className="absolute left-6 top-6 flex space-x-4">
         <Link href="/" className="text-slate-400 hover:text-white transition flex items-center bg-slate-800/50 px-4 py-2 rounded-full text-sm">
           ← {t.navHome}
         </Link>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 p-10 rounded-3xl shadow-2xl max-w-md w-full relative overflow-hidden">
+      <motion.div
+        initial={reduceMotion ? false : { opacity: 0, y: 22, scale: 0.985 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={rise}
+        className="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 p-10 shadow-2xl"
+      >
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl"></div>
         <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl"></div>
 
@@ -127,8 +143,8 @@ function LoginPageInner() {
             {t.goReg}
           </Link>
         </p>
-      </div>
-    </main>
+      </motion.div>
+    </motion.main>
   );
 }
 
@@ -136,8 +152,11 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen bg-slate-950 flex flex-col justify-center items-center text-white">
-          <p className="text-slate-400 text-sm">Yuklanmoqda...</p>
+        <main
+          className="flex min-h-screen flex-col items-center justify-center bg-slate-950 text-white"
+          style={{ backgroundColor: "#020617" }}
+        >
+          <p className="text-sm text-slate-400">Yuklanmoqda...</p>
         </main>
       }
     >

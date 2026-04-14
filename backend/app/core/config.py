@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -36,8 +36,9 @@ class Settings(BaseSettings):
     storage_url_prefix: str = "/storage"
 
     max_upload_size_mb: int = 20
-    # Kompressiya / video (multipart). 20480 MB ≈ 20 GB.
-    compress_max_upload_mb: int = 20480
+    # Kompressiya / video (multipart, MB = 1024² bayt). 20 * 1024 = 20 GiB ≈ 21.5 GB (o‘lchov).
+    # .env: COMPRESS_MAX_UPLOAD_MB=20480 (yoki kerak bo‘lsa oshiring).
+    compress_max_upload_mb: int = 20 * 1024
     allowed_image_types: list[str] = Field(
         default_factory=lambda: [
             "image/jpeg",
@@ -64,7 +65,8 @@ class Settings(BaseSettings):
     ocr_fallback_message: str = "No readable text could be extracted from the image."
 
     default_plan_code: str = "free"
-    # Obuna chegarasi hozircha yechildi (Limitsiz qilingan)
+    # Kunlik yuklash limitlari. Hozircha foydalanuvchilar kam — cheklov yo'q deb hisoblash uchun katta qiymat.
+    # Productionda .env bilan 10/250 kabi aniq qiymat qo'ying.
     free_daily_upload_limit: int = 99999999
     premium_daily_upload_limit: int = 99999999
     free_processing_priority: int = 10
@@ -77,6 +79,10 @@ class Settings(BaseSettings):
 
     real_esrgan_enabled: bool = False
     real_esrgan_model_path: str = ""
+
+    # Admin API: vergul bilan ajratilgan email manzillar (kichik-katta harf farqi yo'q).
+    # Bo'sh bo'lsa, /admin/* endpointlariga hech kim kira olmaydi (403).
+    admin_emails: str = Field(default="", validation_alias=AliasChoices("ADMIN_EMAILS", "admin_emails"))
 
     @field_validator("debug", mode="before")
     @classmethod
@@ -105,6 +111,10 @@ class Settings(BaseSettings):
     @property
     def compress_max_upload_bytes(self) -> int:
         return self.compress_max_upload_mb * 1024 * 1024
+
+    @property
+    def admin_email_allowlist(self) -> frozenset[str]:
+        return frozenset(e.strip().lower() for e in self.admin_emails.split(",") if e.strip())
 
 
 @lru_cache

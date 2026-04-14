@@ -1,21 +1,23 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, Suspense, useEffect, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/toast/ToastProvider";
 import { useTranslation } from "@/hooks/useTranslation";
+import { finalizePostAuthRedirect, resolvePostAuthPath } from "@/lib/navigation/postAuthRedirect";
 
 function SignupPageInner() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { signup, isAuthenticated, isLoading } = useAuth();
   const { success, error: errorToast } = useToast();
   const { t } = useTranslation();
+  const reduceMotion = useReducedMotion();
 
-  const nextPath = searchParams.get("next")?.startsWith("/") ? searchParams.get("next")! : "/dashboard";
+  const nextPath = useMemo(() => resolvePostAuthPath(searchParams), [searchParams]);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -27,9 +29,9 @@ function SignupPageInner() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.replace(nextPath);
+      finalizePostAuthRedirect(nextPath);
     }
-  }, [isAuthenticated, isLoading, nextPath, router]);
+  }, [isAuthenticated, isLoading, nextPath]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -55,7 +57,7 @@ function SignupPageInner() {
     try {
       await signup({ email: normEmail, password, confirmPassword, fullName: fullName.trim() || undefined });
       success("Profil ochildi", "Tizimga xush kelibsiz.");
-      router.replace(nextPath);
+      finalizePostAuthRedirect(nextPath);
     } catch (authError) {
       let message = authError instanceof Error ? authError.message : "Ro'yxatdan o'tishda xatolik.";
       if (message.includes("already exists")) {
@@ -74,15 +76,29 @@ function SignupPageInner() {
     }
   };
 
+  const fade = reduceMotion ? { duration: 0 } : { duration: 0.45, ease: [0.22, 1, 0.36, 1] as const };
+  const rise = reduceMotion ? { duration: 0 } : { duration: 0.5, delay: 0.06, ease: [0.22, 1, 0.36, 1] as const };
+
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col justify-center items-center py-14 text-white relative">
-      <div className="absolute top-6 left-6 flex space-x-4">
+    <motion.main
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={fade}
+      className="relative flex min-h-screen flex-col items-center justify-center bg-slate-950 py-14 text-white"
+      style={{ backgroundColor: "#020617" }}
+    >
+      <div className="absolute left-6 top-6 flex space-x-4">
         <Link href="/" className="text-slate-400 hover:text-cyan-400 transition flex items-center bg-slate-800/50 px-5 py-2 rounded-full text-sm font-semibold shadow-lg">
           ← {t.navHome}
         </Link>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 p-10 rounded-3xl shadow-[0_0_50px_rgba(34,211,238,0.05)] max-w-[28rem] w-full relative overflow-hidden">
+      <motion.div
+        initial={reduceMotion ? false : { opacity: 0, y: 22, scale: 0.985 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={rise}
+        className="relative w-full max-w-[28rem] overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 p-10 shadow-[0_0_50px_rgba(34,211,238,0.05)]"
+      >
         <div className="absolute -left-20 top-20 w-44 h-44 bg-blue-500/10 rounded-full blur-3xl"></div>
         <div className="absolute -right-10 bottom-10 w-44 h-44 bg-cyan-500/10 rounded-full blur-3xl"></div>
 
@@ -167,12 +183,15 @@ function SignupPageInner() {
 
         <p className="mt-8 text-center text-sm text-slate-400 relative z-10">
           {t.hasAcc}{" "}
-          <Link href="/login" className="text-blue-400 hover:text-blue-300 font-semibold underline underline-offset-2">
+          <Link
+            href={`/login?next=${encodeURIComponent(nextPath)}`}
+            className="text-blue-400 hover:text-blue-300 font-semibold underline underline-offset-2"
+          >
             {t.goLog}
           </Link>
         </p>
-      </div>
-    </main>
+      </motion.div>
+    </motion.main>
   );
 }
 
@@ -180,8 +199,11 @@ export default function SignupPage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen bg-slate-950 flex flex-col justify-center items-center text-white">
-          <p className="text-slate-400 text-sm">Yuklanmoqda...</p>
+        <main
+          className="flex min-h-screen flex-col items-center justify-center bg-slate-950 text-white"
+          style={{ backgroundColor: "#020617" }}
+        >
+          <p className="text-sm text-slate-400">Yuklanmoqda...</p>
         </main>
       }
     >

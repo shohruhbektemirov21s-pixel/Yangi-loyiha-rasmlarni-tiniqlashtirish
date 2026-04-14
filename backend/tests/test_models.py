@@ -1,12 +1,19 @@
-import pytest
-from datetime import datetime, timezone
+from __future__ import annotations
+
+from app.core.security import hash_password
 from app.models.image_job import ImageJob
 from app.models.user import User
 
+
 def test_image_job_creation(db_session):
-    user = User(id="test_user_id", email="test@example.com", is_active=True)
+    user = User(
+        email="test@example.com",
+        password_hash=hash_password("secret12345"),
+        is_active=True,
+    )
     db_session.add(user)
     db_session.commit()
+    db_session.refresh(user)
 
     job = ImageJob(
         user_id=user.id,
@@ -18,14 +25,25 @@ def test_image_job_creation(db_session):
     )
     db_session.add(job)
     db_session.commit()
-    
+
     assert job.id is not None
     assert job.status == "uploaded"
     assert job.created_at is not None
     assert job.updated_at is not None
 
+
 def test_image_job_defaults(db_session):
+    user = User(
+        email="owner@example.com",
+        password_hash=hash_password("secret12345"),
+        is_active=True,
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
     job = ImageJob(
+        user_id=user.id,
         original_filename="test.png",
         stored_filename="test_456.png",
         content_type="image/png",
@@ -34,7 +52,7 @@ def test_image_job_defaults(db_session):
     )
     db_session.add(job)
     db_session.commit()
-    
+
     assert job.plan_code == "free"
     assert job.processing_priority == 1
     assert job.detected_mode is None

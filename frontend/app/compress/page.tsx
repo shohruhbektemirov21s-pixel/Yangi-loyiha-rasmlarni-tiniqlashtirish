@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Container } from "@/components/layout/Container";
 import { Button } from "@/components/ui/Button";
@@ -8,7 +9,6 @@ import {
   bearerAuthHeaders,
   buildLargeUploadApiUrl,
   extractApiErrorMessage,
-  parseJsonSafely,
   pollCompressJobUntilDone,
   resolveBackendPublicUrl,
   xhrPostFormDataWithProgress
@@ -21,6 +21,7 @@ type CompressApiData = {
   compressed_url: string;
   original_size: number;
   compressed_size: number;
+  compression_skipped?: boolean;
 };
 
 function isCompressVideoFile(f: File): boolean {
@@ -30,24 +31,70 @@ function isCompressVideoFile(f: File): boolean {
   return ["mp4", "mov", "avi", "mkv", "webm", "m4v", "mpeg", "mpg", "wmv", "flv"].includes(ext);
 }
 
+function formatMmSs(totalSec: number): string {
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+/** Taxminiy kodlash vaqti (video MB / daqiqa). */
+function estimateEncodeMinutes(file: File, isVideo: boolean): number {
+  if (!isVideo) return 1;
+  const mb = file.size / (1024 * 1024);
+  return Math.max(1, Math.min(120, Math.round(mb / 8 + 1)));
+}
+
 export default function CompressPage() {
   const [file, setFile] = useState<File | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
   const [result, setResult] = useState<CompressApiData | null>(null);
   const [uploadPercent, setUploadPercent] = useState<number | null>(null);
   const [postUploadPhase, setPostUploadPhase] = useState<"idle" | "encoding">("idle");
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [overallPct, setOverallPct] = useState<number | null>(null);
 
-  const pollCancelRef = useRef(false);
+  const jobAbortRef = useRef<AbortController | null>(null);
+  const jobStartedAtRef = useRef(0);
+  const encodingStartedAtRef = useRef<number | null>(null);
+  const isVideoJobRef = useRef(false);
+
   const { t } = useTranslation();
-  const { token } = useAuth();
+  const { token, isLoading, isAuthenticated } = useAuth();
   const pathname = usePathname();
 
   useEffect(() => {
-    pollCancelRef.current = false;
     return () => {
-      pollCancelRef.current = true;
+      jobAbortRef.current?.abort();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isCompressing) {
+      setElapsedSec(0);
+      setOverallPct(null);
+      return;
+    }
+    const tick = () => {
+      const now = Date.now();
+      setElapsedSec(Math.floor((now - jobStartedAtRef.current) / 1000));
+
+      let pct: number | null = null;
+      if (uploadPercent != null) {
+        pct = isVideoJobRef.current
+          ? Math.round(uploadPercent * 0.5)
+          : Math.round(uploadPercent * 0.88);
+      } else if (postUploadPhase === "encoding" && encodingStartedAtRef.current != null) {
+        const encSec = Math.floor((now - encodingStartedAtRef.current) / 1000);
+        pct = 50 + Math.min(48, Math.floor(encSec * 0.65));
+      } else if (isCompressing && uploadPercent === null && postUploadPhase === "idle") {
+        pct = isVideoJobRef.current ? 52 : 90;
+      }
+      if (pct != null) setOverallPct(Math.min(99, pct));
+    };
+    tick();
+    const id = window.setInterval(tick, 400);
+    return () => window.clearInterval(id);
+  }, [isCompressing, uploadPercent, postUploadPhase]);
 
   const forceDownload = async (url: string, defaultFilename: string) => {
     try {
@@ -78,7 +125,7 @@ export default function CompressPage() {
       window.location.assign(`/login?next=${encodeURIComponent(pathname || "/compress")}`);
       return;
     }
-    if (code === "CANCELLED") return;
+    if (code === "CANCELLED" || code === "ABORTED") return;
     if (code === "POLL_TIMEOUT") {
       alert(t.compPollTimeout);
       return;
@@ -96,41 +143,49 @@ export default function CompressPage() {
 
   const handleCompress = async () => {
     if (!file) return;
+    if (!token?.trim()) {
+      window.location.assign(`/login?next=${encodeURIComponent(pathname || "/compress")}`);
+      return;
+    }
+
     setIsCompressing(true);
     setResult(null);
     setUploadPercent(null);
     setPostUploadPhase("idle");
-    pollCancelRef.current = false;
+    setOverallPct(0);
+    jobAbortRef.current?.abort();
+    const jobAc = new AbortController();
+    jobAbortRef.current = jobAc;
+    const jobSignal = jobAc.signal;
+    jobStartedAtRef.current = Date.now();
+    encodingStartedAtRef.current = null;
 
     const formData = new FormData();
     formData.append("file", file);
     const headers = bearerAuthHeaders(token);
     const url = buildLargeUploadApiUrl("/compress");
     const video = isCompressVideoFile(file);
+    isVideoJobRef.current = video;
 
     try {
       let status: number;
       let resData: unknown;
 
-      if (video) {
-        setUploadPercent(0);
-        try {
-          const xhrRes = await xhrPostFormDataWithProgress(url, formData, headers, (pct) => {
-            if (pct != null) setUploadPercent(pct);
-          });
-          status = xhrRes.status;
-          resData = xhrRes.body;
-        } finally {
-          setUploadPercent(null);
-        }
-      } else {
-        const response = await fetch(url, {
-          method: "POST",
+      setUploadPercent(0);
+      try {
+        const xhrRes = await xhrPostFormDataWithProgress(
+          url,
+          formData,
           headers,
-          body: formData
-        });
-        status = response.status;
-        resData = await parseJsonSafely(response);
+          (pct) => {
+            if (pct != null) setUploadPercent(pct);
+          },
+          { signal: jobSignal }
+        );
+        status = xhrRes.status;
+        resData = xhrRes.body;
+      } finally {
+        setUploadPercent(null);
       }
 
       if (status === 401) {
@@ -147,14 +202,18 @@ export default function CompressPage() {
           return;
         }
         setPostUploadPhase("encoding");
+        encodingStartedAtRef.current = Date.now();
         try {
           const row = await pollCompressJobUntilDone(jobId, token, {
-            isCancelled: () => pollCancelRef.current
+            isCancelled: () => jobSignal.aborted,
+            signal: jobSignal
           });
+          setOverallPct(100);
           setResult({
             compressed_url: String(row.compressed_url || ""),
             original_size: Number(row.original_size || 0),
-            compressed_size: Number(row.compressed_size || 0)
+            compressed_size: Number(row.compressed_size || 0),
+            compression_skipped: Boolean(row.compression_skipped)
           });
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
@@ -162,7 +221,7 @@ export default function CompressPage() {
             window.location.assign(`/login?next=${encodeURIComponent(pathname || "/compress")}`);
             return;
           }
-          if (msg === "CANCELLED") return;
+          if (msg === "CANCELLED" || msg === "ABORTED") return;
           if (msg === "POLL_TIMEOUT") {
             alert(t.compPollTimeout);
             return;
@@ -181,13 +240,23 @@ export default function CompressPage() {
 
       const resObj = resData && typeof resData === "object" ? (resData as Record<string, unknown>) : null;
       if (resObj?.success && resObj.data && typeof resObj.data === "object") {
-        setResult(resObj.data as CompressApiData);
+        setOverallPct(100);
+        const row = resObj.data as Record<string, unknown>;
+        setResult({
+          compressed_url: String(row.compressed_url || ""),
+          original_size: Number(row.original_size || 0),
+          compressed_size: Number(row.compressed_size || 0),
+          compression_skipped: Boolean(row.compression_skipped)
+        });
       } else {
         alert(t.compErrServer);
       }
     } catch (err) {
       console.error(err);
       const msg = err instanceof Error ? err.message : "";
+      if (msg === "ABORTED" || msg === "CANCELLED") {
+        return;
+      }
       if (msg === "NETWORK" || msg === "TIMEOUT") {
         alertFromPollError(msg);
       } else {
@@ -197,7 +266,13 @@ export default function CompressPage() {
       setIsCompressing(false);
       setUploadPercent(null);
       setPostUploadPhase("idle");
+      encodingStartedAtRef.current = null;
+      jobAbortRef.current = null;
     }
+  };
+
+  const handleCancelCompress = () => {
+    jobAbortRef.current?.abort();
   };
 
   const formatSize = (bytes: number) => {
@@ -210,6 +285,8 @@ export default function CompressPage() {
 
   const pctLabel =
     uploadPercent != null ? t.compUploadPct.replace("{n}", String(uploadPercent)) : null;
+  const etaMin = file ? estimateEncodeMinutes(file, isCompressVideoFile(file)) : 1;
+  const canUseCompress = Boolean(token?.trim()) && !isLoading;
 
   return (
     <div className="min-h-screen flex flex-col pt-20">
@@ -220,7 +297,20 @@ export default function CompressPage() {
               {t.compTitle}
             </h1>
             <p className="text-slate-600 text-lg mb-4">{t.compDesc}</p>
+            <p className="text-slate-600 text-sm mb-2 font-medium text-indigo-700">{t.compMaxUpload}</p>
             <p className="text-slate-600 text-base mb-10 max-w-2xl mx-auto">{t.compOfficeFormats}</p>
+
+            {!isLoading && isAuthenticated && !token?.trim() && (
+              <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900">
+                <p className="mb-2">{t.compNeedToken}</p>
+                <Link
+                  href={`/login?next=${encodeURIComponent(pathname || "/compress")}`}
+                  className="font-semibold text-indigo-700 underline"
+                >
+                  {t.compReLogin}
+                </Link>
+              </div>
+            )}
 
             <div className="bg-white border border-slate-200 rounded-2xl p-8 mb-8 shadow-sm">
               <input
@@ -229,10 +319,11 @@ export default function CompressPage() {
                 accept="video/*,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.pdf,.odt,.ods,.odp,application/*"
                 onChange={handleFileChange}
                 className="sr-only"
+                disabled={!canUseCompress}
               />
               <label
                 htmlFor="compress-file-input"
-                className="mb-6 inline-flex cursor-pointer items-center justify-center rounded-full bg-indigo-500/10 px-6 py-3 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-500/20"
+                className={`mb-6 inline-flex cursor-pointer items-center justify-center rounded-full bg-indigo-500/10 px-6 py-3 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-500/20 ${!canUseCompress ? "pointer-events-none opacity-50" : ""}`}
               >
                 {t.compPickFile}
               </label>
@@ -247,7 +338,7 @@ export default function CompressPage() {
                   </div>
                   <Button
                     onClick={handleCompress}
-                    disabled={isCompressing}
+                    disabled={isCompressing || !canUseCompress}
                     className="bg-indigo-600 hover:bg-indigo-500 ml-4 py-2 px-6 rounded-lg text-white font-bold transition shadow-sm hover:-translate-y-0.5"
                   >
                     {isCompressing ? t.compWait : t.compStart}
@@ -255,13 +346,19 @@ export default function CompressPage() {
                 </div>
               )}
 
-              {isCompressing && (uploadPercent != null || postUploadPhase === "encoding") && (
-                <div className="mb-6 text-left space-y-3 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
+              {isCompressing && (
+                <div className="mb-6 space-y-3 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 text-left">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-indigo-950">
+                    <span className="font-medium">{t.compElapsed.replace("{t}", formatMmSs(elapsedSec))}</span>
+                    {overallPct != null && (
+                      <span className="font-semibold">{t.compOverallPct.replace("{n}", String(overallPct))}</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-indigo-800/90">{t.compEtaHint.replace("{n}", String(etaMin))}</p>
                   {uploadPercent != null && (
                     <>
                       <p className="text-sm font-medium text-indigo-900">
-                        {t.compUploading}
-                        {pctLabel ? ` — ${pctLabel}` : ""}
+                        {t.compPhaseUploadShort} — {pctLabel}
                       </p>
                       <div className="h-2 w-full overflow-hidden rounded-full bg-indigo-100">
                         <div
@@ -272,8 +369,23 @@ export default function CompressPage() {
                     </>
                   )}
                   {postUploadPhase === "encoding" && (
-                    <p className="text-sm text-indigo-900 leading-relaxed">{t.compEncoding}</p>
+                    <p className="text-sm font-medium text-indigo-900">{t.compPhaseEncodeShort}: {t.compEncoding}</p>
                   )}
+                  {overallPct != null && (
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className="h-full rounded-full bg-emerald-500 transition-[width] duration-300"
+                        style={{ width: `${overallPct}%` }}
+                      />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleCancelCompress}
+                    className="w-full rounded-lg border border-indigo-200 bg-white py-2 text-sm font-semibold text-indigo-800 transition hover:bg-indigo-50"
+                  >
+                    {t.actionCancel}
+                  </button>
                 </div>
               )}
 
@@ -296,6 +408,13 @@ export default function CompressPage() {
                     </div>
                   </div>
 
+                  {result.compression_skipped && (
+                    <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-950">
+                      <p className="font-semibold mb-1">{t.compPrecompressedTitle}</p>
+                      <p className="leading-relaxed text-amber-900/95">{t.compPrecompressedBody}</p>
+                    </div>
+                  )}
+
                   <button
                     onClick={() => {
                       const rawUrl = result.compressed_url;
@@ -309,6 +428,12 @@ export default function CompressPage() {
                   >
                     {t.dlBtn || "Yuklab Olish ⬇"}
                   </button>
+                  <Link
+                    href="/"
+                    className="mt-3 block w-full text-center text-sm font-semibold text-indigo-700 underline underline-offset-2"
+                  >
+                    {t.afterDoneGoHome}
+                  </Link>
                 </div>
               )}
             </div>

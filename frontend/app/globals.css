@@ -2,25 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Oddiy CSS: @apply * ustida ba'zan dev/keshda postcss xatosi butun Tailwindni yo'qotishi mumkin. */
 :root {
   color-scheme: light;
 }
 
-* {
-  @apply border-slate-200;
+*,
+::before,
+::after {
+  border-color: rgb(226 232 240);
 }
 
 body {
-  @apply bg-white text-slate-900 antialiased;
+  margin: 0;
   background-color: #f8fafc;
+  color: rgb(15 23 42);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   background-image:
     radial-gradient(circle at 15% 5%, rgba(56, 189, 248, 0.12), transparent 35%),
     radial-gradient(circle at 85% 20%, rgba(99, 102, 241, 0.12), transparent 35%),
     radial-gradient(circle at 50% 80%, rgba(14, 165, 233, 0.08), transparent 40%);
 }
 
+/* theme() ba'zi postcss/tailwind versiyalarida butun faylni buzishi mumkin — qiymatni bevosita yozamiz */
 .page-noise {
-  background-image: theme("backgroundImage.grain");
+  background-image: radial-gradient(circle at 1px 1px, rgba(15, 26, 36, 0.06) 1px, transparent 0);
   background-size: 3px 3px;
 }
 

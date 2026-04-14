@@ -50,9 +50,12 @@ export const BILLING_OVERVIEW_ENDPOINT =
 export const BILLING_SUBSCRIPTION_ENDPOINT =
   process.env.NEXT_PUBLIC_BILLING_SUBSCRIPTION_ENDPOINT?.trim() || "/billing/subscription";
 
-// Backward-compatible legacy endpoint constant.
+/**
+ * Rasm tiniqlashtirish: hozirgi API `POST /image_enhance` (avtorizatsiya).
+ * Eski `/images/enhance` yo'q — chalkashlikni kamaytirish uchun default shu.
+ */
 export const ENHANCE_ENDPOINT =
-  process.env.NEXT_PUBLIC_ENHANCE_ENDPOINT?.trim() || "/images/enhance";
+  process.env.NEXT_PUBLIC_ENHANCE_ENDPOINT?.trim() || "/image_enhance";
 
 export class ApiRequestError extends Error {
   status?: number;
@@ -173,10 +176,37 @@ export function xhrPostFormDataWithProgress(
   url: string,
   formData: FormData,
   authHeaders: HeadersInit,
-  onProgress?: (percent: number | null) => void
+  onProgress?: (percent: number | null) => void,
+  options?: { signal?: AbortSignal }
 ): Promise<XhrJsonResult> {
   return new Promise((resolve, reject) => {
+    const signal = options?.signal;
+    let settled = false;
+    const cleanup = () => {
+      if (signal) {
+        signal.removeEventListener("abort", onSignalAbort);
+      }
+    };
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      fn();
+    };
+
     const xhr = new XMLHttpRequest();
+    const onSignalAbort = () => {
+      xhr.abort();
+    };
+
+    if (signal) {
+      if (signal.aborted) {
+        finish(() => reject(new Error("ABORTED")));
+        return;
+      }
+      signal.addEventListener("abort", onSignalAbort);
+    }
+
     xhr.open("POST", url);
     const h = authHeaders as Record<string, string>;
     if (h.Authorization) {
@@ -190,6 +220,10 @@ export function xhrPostFormDataWithProgress(
       }
     };
     xhr.onload = () => {
+      if (xhr.status === 0) {
+        finish(() => reject(new Error("ABORTED")));
+        return;
+      }
       const text = xhr.responseText;
       let body: unknown = null;
       if (text) {
@@ -199,10 +233,11 @@ export function xhrPostFormDataWithProgress(
           body = text;
         }
       }
-      resolve({ status: xhr.status, body });
+      finish(() => resolve({ status: xhr.status, body }));
     };
-    xhr.onerror = () => reject(new Error("NETWORK"));
-    xhr.ontimeout = () => reject(new Error("TIMEOUT"));
+    xhr.onerror = () => finish(() => reject(new Error("NETWORK")));
+    xhr.ontimeout = () => finish(() => reject(new Error("TIMEOUT")));
+    xhr.onabort = () => finish(() => reject(new Error("ABORTED")));
     xhr.timeout = 0;
     xhr.send(formData);
   });
@@ -211,19 +246,29 @@ export function xhrPostFormDataWithProgress(
 export async function pollCompressJobUntilDone(
   jobId: string,
   accessToken: string | null,
-  options?: { intervalMs?: number; maxAttempts?: number; isCancelled?: () => boolean }
+  options?: { intervalMs?: number; maxAttempts?: number; isCancelled?: () => boolean; signal?: AbortSignal }
 ): Promise<Record<string, unknown>> {
   const intervalMs = options?.intervalMs ?? 2000;
   const maxAttempts = options?.maxAttempts ?? 3600;
   const isCancelled = options?.isCancelled;
+  const signal = options?.signal;
 
   for (let i = 0; i < maxAttempts; i++) {
-    if (isCancelled?.()) {
+    if (isCancelled?.() || signal?.aborted) {
       throw new Error("CANCELLED");
     }
-    const r = await fetch(buildLargeUploadApiUrl(`compress/jobs/${jobId}`), {
-      headers: bearerAuthHeaders(accessToken)
-    });
+    let r: Response;
+    try {
+      r = await fetch(buildLargeUploadApiUrl(`compress/jobs/${jobId}`), {
+        headers: bearerAuthHeaders(accessToken),
+        signal
+      });
+    } catch (e) {
+      if (signal?.aborted || isCancelled?.()) {
+        throw new Error("CANCELLED");
+      }
+      throw e instanceof Error ? e : new Error(String(e));
+    }
     const body = (await parseJsonSafely(r)) as Record<string, unknown> | string | null;
     if (r.status === 401) {
       throw new Error("AUTH_401");

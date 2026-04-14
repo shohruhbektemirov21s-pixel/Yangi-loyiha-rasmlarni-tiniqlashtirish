@@ -12,18 +12,19 @@ export const translations = {
     enhanceVideo: "Rasm va Videolarni Tiniqlash",
     images: "Rasmlar yuklash",
     login: "Kirish",
-    uploadBtn: "Yuklashni boshlash",
-    exploreBtn: "Tizim haqida o'qish",
-    viewHistoryBtn: "Tarixni ko'rish",
     uploadTitle: "Xira rasmni hududga tashlang va tayyor natijani oling",
     uploadDesc: "JPG, PNG yoki WEBP formatdagi rasm tanlang. API rasmni qabul qilib tozalaydi, va agar ichida matn bo'lsa darhol ko'chirib beradi.",
     lang: "O'zbekcha",
     compTitle: "Kompressiya: Katta fayllarni maydalash",
     compDesc: "Rasm yoki videolaringiz hajmini sifatiga deyarli ta'sir qilmasdan, 5-10 barobargacha kichraytiring (masalan 1GB dan 100MB gacha).",
+    compMaxUpload: "Bitta fayl uchun maksimal yuklash: 20 GB gacha (katta videolar uchun).",
     compOfficeFormats:
       "Word (.doc, .docx), Excel (.xls, .xlsx), PowerPoint (.ppt, .pptx), PDF va boshqa hujjatlar ZIP arxivida siqiladi — fayl ichidagi ma'lumot o'zgarmaydi, hajm kamayadi.",
     compFootNote:
       "Video fayllar FFMPEG orqali qayta kodlanadi; hujjatlar va boshqa turlar ZIP bilan siqiladi.",
+    compPrecompressedTitle: "Hajm nima uchun o'zgarmadi?",
+    compPrecompressedBody:
+      ".tar.gz, .zip, .7z va shunga o'xshash fayllar ichidagi ma'lumot allaqachon siqilgan. Ularni yana siqib bo'lmaydi (yoki foyda bo'lmaydi) — bu normal. Word/PDF/rasm/video kabi siqilmagan turlar haqiqatan kichrayadi.",
     compBtn: "Siqishni boshlash",
     vidTitle: "Rasm va videoni tiniqlashtirish",
     vidDesc:
@@ -32,7 +33,7 @@ export const translations = {
     vidBulletVideo:
       "Video (MP4, MOV, WEBM, MKV va hokazo) — xiralik va shovqinni kamaytirish, fokusni tiklash.",
     vidBulletImage:
-      "Rasm (JPG, PNG, WEBP, GIF, BMP, HEIC) — tafsilotlarni kuchaytirish va o'qilishi yaxshilash.",
+      "Rasm (JPG, PNG, WEBP, GIF, BMP, HEIC) — xira yoki pikselli yozuvlarni tiniqlashtiradi; yaqinlashtirganda harflar aniq, bemalol o'qiladi.",
     vidBulletOcr:
       "Rasmda matn bo'lsa, tiniqlashtirilgan nusxadan OCR orqali matn ajratib beriladi.",
     vidBtn: "Tiniqlashni boshlash",
@@ -42,7 +43,8 @@ export const translations = {
     feat1T: "Xiralikni yo'qotish (Blur Removal)",
     feat1D: "Rasm va videolarni tahlil qilib, xira qismlarni HD sifatga ko'tarib tekislaydi.",
     feat2T: "Matnni tiklash (Text Readability)",
-    feat2D: "Kamera fokusidan tushib qolgan yozuvli qog'oz, konspekt va skrinshotlarni o'qish mumkin darajaga ko'taradi.",
+    feat2D:
+      "Kamera fokusidan tushgan yoki past pikselli matnli qog'oz, konspekt va skrinshotlarni tiniq qiladi — yaqinlashtirganda harflar aniq, o'qish qulay bo'ladi.",
     feat3T: "Matn terish (OCR Extraction)",
     feat3D: "Tiniqlashgan rasm ichidagi matnlarni avtomatik tanib oladi va word dagi kabi ko'chirib beradi.",
     dzDrag: "Rasm tashlang yoki ustiga bosing",
@@ -78,6 +80,8 @@ export const translations = {
     hasAcc: "Allaqachon profilingiz bormi?",
     goLog: "Kirish",
     dlBtn: "Yuklab Olish ⬇",
+    actionCancel: "Bekor qilish",
+    afterDoneGoHome: "Bosh sahifaga",
     compPickFile: "Fayl tanlash",
     compErrServer: "Server xatosi",
     compErrNetwork: "Tarmoq xatosi yoki ulanish uzildi.",
@@ -86,6 +90,13 @@ export const translations = {
     compEncoding: "Video FFmpeg bilan kodlanmoqda. Katta fayllar bir necha daqiqa olishi mumkin — brauzerni yopmang.",
     compPollTimeout:
       "Kutish vaqti tugadi. Internet, server (port 8000) va tizimga kirganingizni tekshiring; keyin qayta urinib ko'ring.",
+    compElapsed: "O'tgan vaqt: {t}",
+    compOverallPct: "Jami jarayon: {n}%",
+    compEtaHint: "Taxminiy qolgan vaqt: ~{n} daqiqa (fayl hajmiga qarab)",
+    compNeedToken: "Avval tizimga kiring — token yuklanmoqda yoki sessiya yangilanmagan.",
+    compReLogin: "Qayta kirish",
+    compPhaseUploadShort: "Yuklash",
+    compPhaseEncodeShort: "Kodlash",
     compReady: "Tayyor",
     compStart: "Siqishni boshlash",
     compWait: "Kutib turing...",
@@ -104,6 +115,12 @@ export const translations = {
       "Video uzunligi va rasm o'lchamiga qarab jarayon kompyuter yoki serverda uzoq vaqt olishi mumkin.",
     vidOcrLabel: "Ajratilgan matn (OCR)",
     vidDlImage: "Tiniq rasmini yuklab olish",
+    vidElapsed: "O'tgan vaqt: {t}",
+    vidOverallPct: "Jarayon: {n}%",
+    vidEtaHint: "Taxminiy: ~{n} daqiqa",
+    vidNeedToken: "Tizimga kiring (token kerak).",
+    vidPhaseUpload: "Yuklash",
+    vidPhaseProcess: "Qayta ishlash",
     dashEyebrow: "Boshqaruv",
     dashTitle: "Qayta ishlash tarixi",
     dashSubtitle:
@@ -147,18 +164,19 @@ export const translations = {
     enhanceVideo: "Очистка Фото/Видео",
     images: "Загрузить фото",
     login: "Войти",
-    uploadBtn: "Загрузить фото",
-    exploreBtn: "О системе",
-    viewHistoryBtn: "История",
     uploadTitle: "Перетащите размытое фото в рабочую зону",
     uploadDesc: "Выберите формат JPG, PNG или WEBP. API очистит фото и извлечет текст, если он есть.",
     lang: "Русский",
     compTitle: "Сжатие файлов (Компрессия)",
     compDesc: "Уменьшите размер фотографий или видео в 5-10 раз (например, с 1 ГБ до 100 МБ) практически без потери качества.",
+    compMaxUpload: "Один файл — до 20 ГБ (для очень больших видео).",
     compOfficeFormats:
       "Word (.doc, .docx), Excel (.xls, .xlsx), PowerPoint (.ppt, .pptx), PDF и другие документы упаковываются в ZIP — содержимое не меняется, размер уменьшается.",
     compFootNote:
       "Видео перекодируется через FFMPEG; документы и прочие типы сжимаются в ZIP.",
+    compPrecompressedTitle: "Почему размер не уменьшился?",
+    compPrecompressedBody:
+      "Файлы .tar.gz, .zip, .7z и похожие уже сжаты внутри. Повторно сильно уменьшить их обычно нельзя — это нормально. Для заметного уменьшения используйте несжатые типы: Word/PDF/изображения/видео.",
     compBtn: "Начать сжатие",
     vidTitle: "Улучшение фото и видео",
     vidDesc:
@@ -167,7 +185,7 @@ export const translations = {
     vidBulletVideo:
       "Видео (MP4, MOV, WEBM, MKV и др.) — меньше шума и размытости, больше резкости.",
     vidBulletImage:
-      "Изображение (JPG, PNG, WEBP, GIF, BMP, HEIC) — усиление деталей и читаемости.",
+      "Изображение (JPG, PNG, WEBP, GIF, BMP, HEIC) — размытый или пиксельный текст делается чётче; при увеличении буквы остаются разборчивыми.",
     vidBulletOcr:
       "Если на фото есть текст, после улучшения он будет извлечён через OCR.",
     vidBtn: "Начать улучшение",
@@ -177,7 +195,8 @@ export const translations = {
     feat1T: "Устранение размытия (Blur Removal)",
     feat1D: "Анализирует фото и видео, выводя размытые участки в качество HD.",
     feat2T: "Восстановление текста",
-    feat2D: "Повышает читаемость не сфокусированных конспектов и документов на фото.",
+    feat2D:
+      "Улучшает размытый или мелкий пиксельный текст на бумаге, конспектах и скриншотах — при масштабе буквы остаются чёткими и удобными для чтения.",
     feat3T: "Извлечение текста (OCR)",
     feat3D: "Автоматически распознает текст на улучшенном изображении и выдает его в текстовом виде.",
     dzDrag: "Перетащите или нажмите",
@@ -213,6 +232,8 @@ export const translations = {
     hasAcc: "Уже есть профиль?",
     goLog: "Войти",
     dlBtn: "Скачать ⬇",
+    actionCancel: "Отмена",
+    afterDoneGoHome: "На главную",
     compPickFile: "Выберите файл",
     compErrServer: "Ошибка сервера",
     compErrNetwork: "Сетевая ошибка или обрыв соединения.",
@@ -221,6 +242,13 @@ export const translations = {
     compEncoding: "Кодирование видео (FFmpeg). Большие файлы могут занять несколько минут — не закрывайте вкладку.",
     compPollTimeout:
       "Превышено время ожидания. Проверьте интернет, сервер (порт 8000) и вход в аккаунт; попробуйте снова.",
+    compElapsed: "Прошло: {t}",
+    compOverallPct: "Общий прогресс: {n}%",
+    compEtaHint: "Примерно осталось: ~{n} мин (зависит от размера файла)",
+    compNeedToken: "Войдите в систему — токен загружается или сессия устарела.",
+    compReLogin: "Войти снова",
+    compPhaseUploadShort: "Загрузка",
+    compPhaseEncodeShort: "Кодирование",
     compReady: "Готово",
     compStart: "Начать сжатие",
     compWait: "Подождите...",
@@ -239,6 +267,12 @@ export const translations = {
       "В зависимости от длины видео и размера фото обработка может занять много времени.",
     vidOcrLabel: "Извлечённый текст (OCR)",
     vidDlImage: "Скачать улучшенное изображение",
+    vidElapsed: "Прошло: {t}",
+    vidOverallPct: "Прогресс: {n}%",
+    vidEtaHint: "Примерно: ~{n} мин",
+    vidNeedToken: "Войдите в систему (нужен токен).",
+    vidPhaseUpload: "Загрузка",
+    vidPhaseProcess: "Обработка",
     dashEyebrow: "Панель",
     dashTitle: "История обработки",
     dashSubtitle:
@@ -282,18 +316,19 @@ export const translations = {
     enhanceVideo: "Restore Photo/Video",
     images: "Images center",
     login: "Login",
-    uploadBtn: "Upload an image",
-    exploreBtn: "About platform",
-    viewHistoryBtn: "View history",
     uploadTitle: "Drop your blurry image and view results",
     uploadDesc: "Choose a JPG, JPEG, PNG, or WEBP image. The result page shows original, enhanced output, and OCR text.",
     lang: "English",
     compTitle: "Compression: Shrink large files",
     compDesc: "Reduce the size of your photos or videos by 5-10 times (e.g. from 1GB to 100MB) with almost no loss in quality.",
+    compMaxUpload: "Single file upload limit: up to 20 GB (for very large videos).",
     compOfficeFormats:
       "Word (.doc, .docx), Excel (.xls, .xlsx), PowerPoint (.ppt, .pptx), PDF and other documents are packed into ZIP — content stays the same, size shrinks.",
     compFootNote:
       "Videos are re-encoded with FFmpeg; documents and other types are stored as ZIP.",
+    compPrecompressedTitle: "Why didn't the size shrink?",
+    compPrecompressedBody:
+      "Files like .tar.gz, .zip, and .7z are already compressed inside. Re-compressing them usually won't help—that's expected. For real savings, use formats that aren't already packed tight (Word/PDF/images/video).",
     compBtn: "Start compression",
     vidTitle: "Enhance photos and video",
     vidDesc:
@@ -302,7 +337,7 @@ export const translations = {
     vidBulletVideo:
       "Video (MP4, MOV, WEBM, MKV, …) — reduce blur and noise, bring back focus.",
     vidBulletImage:
-      "Image (JPG, PNG, WEBP, GIF, BMP, HEIC) — boost detail and readability.",
+      "Image (JPG, PNG, WEBP, GIF, BMP, HEIC) — clarifies blurry or blocky text so zoomed-in letters stay sharp and easy to read.",
     vidBulletOcr:
       "If the picture contains text, OCR runs on the enhanced result so you can copy it.",
     vidBtn: "Start enhancement",
@@ -312,7 +347,8 @@ export const translations = {
     feat1T: "Blur Removal",
     feat1D: "Edge-enhancing AI filters reduce motion blur and out-of-focus elements.",
     feat2T: "Text Readability Improvement",
-    feat2D: "Applies targeted sharpening to text regions so blurry signs and documents become legible.",
+    feat2D:
+      "Sharpens soft or low-resolution text in notes, screenshots, and photos so zooming in keeps letters crisp and comfortable to read.",
     feat3T: "OCR Text Extraction",
     feat3D: "Extracts recognized text directly from your enhanced images so you don't have to retype.",
     dzDrag: "Drag and drop an image here",
@@ -348,6 +384,8 @@ export const translations = {
     hasAcc: "Already have an account?",
     goLog: "Log in",
     dlBtn: "Download ⬇",
+    actionCancel: "Cancel",
+    afterDoneGoHome: "Back to home",
     compPickFile: "Choose file",
     compErrServer: "Server error",
     compErrNetwork: "Network error or connection lost.",
@@ -356,6 +394,13 @@ export const translations = {
     compEncoding: "Encoding video with FFmpeg. Large files may take several minutes — keep this tab open.",
     compPollTimeout:
       "Timed out waiting for the server. Check your network, that the API is running on port 8000, and that you are logged in; then try again.",
+    compElapsed: "Elapsed: {t}",
+    compOverallPct: "Overall progress: {n}%",
+    compEtaHint: "Rough time left: ~{n} min (depends on file size)",
+    compNeedToken: "Please sign in — token is loading or the session needs refresh.",
+    compReLogin: "Sign in again",
+    compPhaseUploadShort: "Upload",
+    compPhaseEncodeShort: "Encoding",
     compReady: "Ready",
     compStart: "Start compression",
     compWait: "Please wait...",
@@ -372,6 +417,12 @@ export const translations = {
     vidNote: "Long videos and large images may take a long time on your machine or server.",
     vidOcrLabel: "Extracted text (OCR)",
     vidDlImage: "Download enhanced image",
+    vidElapsed: "Elapsed: {t}",
+    vidOverallPct: "Progress: {n}%",
+    vidEtaHint: "Roughly: ~{n} min",
+    vidNeedToken: "Please sign in (token required).",
+    vidPhaseUpload: "Upload",
+    vidPhaseProcess: "Processing",
     dashEyebrow: "Dashboard",
     dashTitle: "Processing history",
     dashSubtitle:

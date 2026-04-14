@@ -1,4 +1,5 @@
 import os
+import shutil
 import uuid
 from pathlib import Path
 
@@ -13,6 +14,27 @@ from app.services.compress_jobs import job_create, job_get, start_video_compress
 router = APIRouter()
 
 _READ_CHUNK = 32 * 1024 * 1024  # 32 MB
+
+
+def _safe_arc_basename(filename: str) -> str:
+    name = Path(filename or "file").name
+    if not name or name in (".", ".."):
+        return "file"
+    return name
+
+
+def _is_already_compressed_archive(filename: str, ext: str) -> bool:
+    """
+    .tar.gz, .zip va shu kabi fayllar allaqachon siqilgan.
+    ZIP(DEFLATE) ichiga qayta o'rash hajmni sezilarli kamaytirmaydi (ko'pincha bir xil yoki kattaroq).
+    """
+    name = (filename or "").lower()
+    ex = (ext or "").lower().lstrip(".")
+    if name.endswith((".tar.gz", ".tar.bz2", ".tar.xz", ".tar.zst")):
+        return True
+    if ex in ("gz", "bz2", "xz", "zip", "7z", "rar", "zst", "br", "lz4", "tgz"):
+        return True
+    return False
 
 
 @router.get("/jobs/{job_id}")
@@ -111,15 +133,54 @@ async def compress_media(
             result_path = output_path
         except Exception:
             result_path = input_path
+    elif _is_already_compressed_archive(file.filename or "", ext):
+        # Hajmni "kamaytirish" texnik jihatdan mumkin emas — nusxa chiqaramiz, mijoz chalkashmasin.
+        out_name = f"{input_id}_{_safe_arc_basename(file.filename or 'archive')}"
+        result_path = settings.output_dir / out_name
+        shutil.copy2(input_path, result_path)
+        input_path.unlink(missing_ok=True)
+        relative_path = (
+            result_path.relative_to(settings.storage_root)
+            if result_path.is_relative_to(settings.storage_root)
+            else Path(result_path).name
+        )
+        url = f"{settings.storage_url_prefix}/{relative_path.as_posix()}"
+        final_size = os.path.getsize(result_path)
+        return JSONResponse(
+            content={
+                "success": True,
+                "message": "Fayl allaqachon siqilgan formatda; hajm o'zgarmadi (nusxa tayyor).",
+                "data": {
+                    "compressed_url": url,
+                    "original_size": original_size,
+                    "compressed_size": final_size,
+                    "compression_skipped": True,
+                },
+            },
+        )
     else:
         import zipfile
 
         try:
-            with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
-                zf.write(input_path, arcname=file.filename or "file")
+            with zipfile.ZipFile(
+                output_path,
+                "w",
+                compression=zipfile.ZIP_DEFLATED,
+                compresslevel=9,
+                allowZip64=True,
+            ) as zf:
+                zf.write(input_path, arcname=_safe_arc_basename(file.filename or "file"))
             result_path = output_path
-        except Exception:
-            result_path = input_path
+        except Exception as exc:
+            input_path.unlink(missing_ok=True)
+            if output_path.exists():
+                output_path.unlink(missing_ok=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"ZIP yaratishda xato (katta fayl yoki disk). / ZIP failed: {exc!s}",
+            ) from exc
+        if input_path.exists() and result_path.exists() and input_path.resolve() != result_path.resolve():
+            input_path.unlink(missing_ok=True)
 
     relative_path = (
         result_path.relative_to(settings.storage_root)
@@ -142,6 +203,7 @@ async def compress_media(
                 "compressed_url": url,
                 "original_size": original_size,
                 "compressed_size": os.path.getsize(final_output_path),
+                "compression_skipped": False,
             },
         }
     )

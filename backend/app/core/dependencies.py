@@ -44,6 +44,22 @@ def get_current_user(
     return auth_service.get_user_from_token(db=db, token=token)
 
 
+def get_current_admin_user(
+    settings: Settings = Depends(get_settings),
+    user: User = Depends(get_current_user),
+) -> User:
+    allow = settings.admin_email_allowlist
+    if not allow:
+        raise AppError(
+            "Admin API o'chirilgan. Serverda ADMIN_EMAILS o'rnatilmagan.",
+            status_code=403,
+            code="admin_disabled",
+        )
+    if user.email.strip().lower() not in allow:
+        raise AppError("Admin huquqi yo'q.", status_code=403, code="admin_forbidden")
+    return user
+
+
 def get_storage_service(settings: Settings = Depends(get_settings)) -> StorageService:
     return StorageService(settings=settings)
 

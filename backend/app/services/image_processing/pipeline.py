@@ -175,6 +175,7 @@ class ImageEnhancementPipeline:
             )
             steps_applied.append(f"tone:{mode}")
 
+        did_spatial_upscale = False
         if active_config.upscale.enabled:
             shortest_side = min(working.shape[:2])
             if shortest_side < active_config.upscale.min_short_side:
@@ -182,6 +183,7 @@ class ImageEnhancementPipeline:
                 if upscaled is not None:
                     working = upscaled
                     steps_applied.append(f"upscale:{self.upscaler.name}")
+                    did_spatial_upscale = True
                 else:
                     scale = active_config.upscale.min_short_side / max(shortest_side, 1)
                     target_w = int(round(working.shape[1] * scale))
@@ -189,9 +191,19 @@ class ImageEnhancementPipeline:
                     working = cv2.resize(
                         working,
                         (max(target_w, 1), max(target_h, 1)),
-                        interpolation=cv2.INTER_CUBIC,
+                        interpolation=cv2.INTER_LANCZOS4,
                     )
-                    steps_applied.append("upscale:bicubic_fallback")
+                    steps_applied.append("upscale:lanczos_fallback")
+                    did_spatial_upscale = True
+
+                if did_spatial_upscale and active_config.upscale.post_sharpen_enabled:
+                    working = apply_unsharp_mask(
+                        working,
+                        sigma=active_config.upscale.post_sharpen_sigma,
+                        amount=active_config.upscale.post_sharpen_amount,
+                        threshold=active_config.upscale.post_sharpen_threshold,
+                    )
+                    steps_applied.append("post_upscale:unsharp")
 
         metrics_after = calculate_metrics(working)
 

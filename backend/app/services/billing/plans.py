@@ -27,7 +27,8 @@ def build_plan_catalog(settings: Settings) -> dict[str, PlanDefinition]:
             ocr_mode=settings.free_ocr_mode or "standard",
             pipeline_override={
                 "upscale": {
-                    "enabled": False,
+                    "enabled": True,
+                    "min_short_side": 960,
                 }
             },
             max_output_short_side=None,

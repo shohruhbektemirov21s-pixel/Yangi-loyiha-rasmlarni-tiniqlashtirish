@@ -1,7 +1,8 @@
 import {
   ApiRequestError,
   ENHANCE_ENDPOINT,
-  buildApiUrl,
+  bearerAuthHeaders,
+  buildLargeUploadApiUrl,
   getBackendOrigin,
   parseJsonSafely
 } from "@/lib/api/client";
@@ -30,13 +31,18 @@ const EXTRACTED_TEXT_KEYS = ["extracted_text", "extractedText", "ocr_text", "ocr
 
 export async function enhanceImageRequest(
   file: File,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  accessToken?: string | null
 ): Promise<EnhanceImageResult> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(buildApiUrl(ENHANCE_ENDPOINT), {
+  const path = ENHANCE_ENDPOINT.startsWith("/") ? ENHANCE_ENDPOINT.slice(1) : ENHANCE_ENDPOINT;
+  const url = buildLargeUploadApiUrl(`/${path}`);
+
+  const response = await fetch(url, {
     method: "POST",
+    headers: bearerAuthHeaders(accessToken ?? null),
     body: formData,
     signal
   });
